@@ -307,9 +307,46 @@ def procesar_dataflow(
 
 
 
+
+def generar_excel_seguro(tabla):
+    """
+    Genera un archivo Excel en memoria.
+
+    Evita que los textos que comienzan con =
+    se almacenen como formulas ejecutables.
+
+    No modifica el DataFrame original.
+    """
+    from io import BytesIO
+
+    memoria = BytesIO()
+
+    with pd.ExcelWriter(
+        memoria,
+        engine="openpyxl"
+    ) as writer:
+
+        tabla.to_excel(
+            writer,
+            index=False,
+            sheet_name="Resultados"
+        )
+
+        hoja = writer.sheets["Resultados"]
+
+        # Convertir formulas detectadas en texto
+        for fila in hoja.iter_rows():
+            for celda in fila:
+                if celda.data_type == "f":
+                    celda.data_type = "s"
+
+    return memoria.getvalue()
+
+
 def exportar_resultados(resultados, carpeta_destino):
     """
-    Exporta los resultados de DataFlow a archivos Excel.
+    Exporta los resultados de DataFlow
+    utilizando la generacion segura de Excel.
     """
     carpeta = Path(carpeta_destino)
     carpeta.mkdir(parents=True, exist_ok=True)
@@ -323,6 +360,7 @@ def exportar_resultados(resultados, carpeta_destino):
     rutas_generadas = {}
 
     for clave, nombre_archivo in nombres_archivos.items():
+
         if clave not in resultados:
             raise ValueError(
                 f"Resultado requerido no encontrado: {clave}"
@@ -330,10 +368,11 @@ def exportar_resultados(resultados, carpeta_destino):
 
         ruta = carpeta / nombre_archivo
 
-        resultados[clave].to_excel(
-            ruta,
-            index=False
+        contenido_excel = generar_excel_seguro(
+            resultados[clave]
         )
+
+        ruta.write_bytes(contenido_excel)
 
         rutas_generadas[clave] = str(ruta)
 
