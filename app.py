@@ -1,10 +1,11 @@
 
 import hashlib
+from io import BytesIO
 
+import pandas as pd
 import streamlit as st
 
 from src.procesador import procesar_dataflow
-
 
 # ----------------------------------------
 # CONFIGURACION GENERAL
@@ -102,6 +103,7 @@ else:
     st.info("Todavía no has seleccionado archivos Excel.")
 
 
+
 # ----------------------------------------
 # PROCESAMIENTO
 # ----------------------------------------
@@ -114,6 +116,7 @@ rechazar_duplicados = st.checkbox(
     value=False
 )
 
+# Validar la configuracion de sucursales
 configuracion_valida = (
     bool(archivos_cargados)
     and len(archivos_por_sucursal) == len(archivos_cargados)
@@ -121,6 +124,7 @@ configuracion_valida = (
     and all(nombres_ingresados)
 )
 
+# Identificar cambios en archivos y configuracion
 identificadores_archivos = []
 
 for archivo in archivos_cargados or []:
@@ -137,10 +141,12 @@ configuracion_actual = (
     rechazar_duplicados
 )
 
+# Evitar mostrar resultados de una configuracion anterior
 if st.session_state.get("configuracion_anterior") != configuracion_actual:
     st.session_state.pop("resultados_dataflow", None)
     st.session_state["configuracion_anterior"] = configuracion_actual
 
+# Ejecutar el procesamiento
 procesar = st.button(
     "🚀 Procesar archivos",
     type="primary",
@@ -158,35 +164,43 @@ if procesar:
             )
 
         st.session_state["resultados_dataflow"] = resultados
-        st.success("Los archivos fueron procesados correctamente.")
+
+        st.success(
+            "Los archivos fueron procesados correctamente."
+        )
 
     except ValueError as error:
         st.error(f"No se pudo procesar: {error}")
 
     except Exception:
         st.error(
-            "Ocurrió un error inesperado durante el procesamiento."
+            "Ocurrio un error inesperado durante el procesamiento."
         )
 
 
 # ----------------------------------------
-# RESULTADOS
+# RESULTADOS Y DESCARGAS
 # ----------------------------------------
 
 if "resultados_dataflow" in st.session_state:
+
     resultados = st.session_state["resultados_dataflow"]
     datos = resultados["datos_validados"]
 
+    # Resumen del procesamiento
     st.subheader("📊 Resumen del procesamiento")
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.metric("Registros analizados", len(datos))
+        st.metric(
+            "Registros analizados",
+            len(datos)
+        )
 
     with col2:
         st.metric(
-            "Registros válidos",
+            "Registros validos",
             int((datos["estado"] == "VALIDO").sum())
         )
 
@@ -196,12 +210,91 @@ if "resultados_dataflow" in st.session_state:
             int((datos["estado"] == "RECHAZADO").sum())
         )
 
+    # Vista previa
     st.subheader("Vista previa de resultados")
-    st.dataframe(datos, use_container_width=True)
+
+    st.dataframe(
+        datos,
+        use_container_width=True
+    )
+
+    # ----------------------------------------
+    # DESCARGAR RESULTADOS EN EXCEL
+    # ----------------------------------------
+
+    st.divider()
+    st.subheader("📥 Descargar resultados")
+
+    st.write(
+        "Descarga los resultados del procesamiento "
+        "en archivos Excel independientes."
+    )
+
+    def convertir_a_excel(tabla):
+        memoria = BytesIO()
+
+        with pd.ExcelWriter(
+            memoria,
+            engine="openpyxl"
+        ) as writer:
+            tabla.to_excel(
+                writer,
+                index=False,
+                sheet_name="Resultados"
+            )
+
+        return memoria.getvalue()
+
+    archivos_salida = {
+        "datos_validados": (
+            "ventas_validadas.xlsx",
+            "📄 Descargar ventas validadas"
+        ),
+        "duplicados": (
+            "duplicados.xlsx",
+            "🔎 Descargar duplicados"
+        ),
+        "reporte_calidad": (
+            "reporte_calidad.xlsx",
+            "📊 Descargar reporte de calidad"
+        )
+    }
+
+    col_descarga1, col_descarga2, col_descarga3 = st.columns(3)
+
+    columnas_descarga = [
+        col_descarga1,
+        col_descarga2,
+        col_descarga3
+    ]
+
+    for columna, (clave, informacion) in zip(
+        columnas_descarga,
+        archivos_salida.items()
+    ):
+
+        nombre_archivo, etiqueta = informacion
+
+        with columna:
+            st.download_button(
+                label=etiqueta,
+                data=convertir_a_excel(resultados[clave]),
+                file_name=nombre_archivo,
+                mime=(
+                    "application/vnd.openxmlformats-officedocument."
+                    "spreadsheetml.sheet"
+                ),
+                key=f"descarga_{clave}",
+                use_container_width=True
+            )
+
+
+# ----------------------------------------
+# PIE DE PAGINA
+# ----------------------------------------
 
 st.divider()
 
 st.caption(
     "DataFlow | Soluciones de analítica y automatización de datos"
 )
-
