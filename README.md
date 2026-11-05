@@ -71,6 +71,40 @@ Se han implementado y probado controles específicos para validar archivos, gest
 
 Para utilizar DataFlow con información empresarial confidencial se requiere una evaluación adicional de privacidad, infraestructura, controles de acceso y tratamiento de datos.
 
+
+## 📸 Evidencias del proyecto
+
+Las siguientes capturas corresponden a una simulación
+empresarial realizada con datos ficticios.
+
+### 1. Aplicación web DataFlow
+
+![Interfaz de DataFlow](evidencias/01_interfaz.png)
+
+### 2. Procesamiento y validación de datos
+
+![Procesamiento de ventas y duplicados](evidencias/02_procesamiento.png)
+
+**Resultados verificados:**
+- 8 registros analizados.
+- 4 registros válidos.
+- 4 registros rechazados.
+- 2 registros con identificador duplicado.
+
+### 3. Indicadores y reportes
+
+![Reporte de calidad](evidencias/03_reporte_calidad.png)
+
+**Tasa de calidad del conjunto de prueba: 50 %.**
+
+### 4. Pruebas automatizadas
+
+![19 pruebas aprobadas en GitHub Actions](evidencias/04_pruebas_automatizadas.png)
+
+El motor de procesamiento superó 19 pruebas
+automatizadas ejecutadas mediante Pytest y GitHub Actions.
+
+
 ## 🧪 Pruebas y calidad
 
 El motor de desarrollo ha superado **19 pruebas automatizadas**, que incluyen comprobaciones de validación, consolidación, duplicados, exportación y manejo de archivos inválidos.
