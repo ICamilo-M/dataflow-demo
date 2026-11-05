@@ -82,7 +82,8 @@ La presentación incluye el problema empresarial,
 la solución técnica, los resultados verificados
 y las competencias profesionales demostradas.
 
-📄 [Ver presentación de DataFlow (PDF)](portafolio/presentacion_dataflow.pdf)
+📄 [Ver presentación de DataFlow (PDF)](portafolio/DataFlow_Presentacion_Profesional.pdf)
+
 
 **Nota:** El caso empresarial utiliza datos ficticios.
 
