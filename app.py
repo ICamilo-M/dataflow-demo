@@ -1,20 +1,22 @@
 
 import hashlib
-from io import BytesIO
 
-import pandas as pd
 import streamlit as st
 
-from src.procesador import procesar_dataflow
+from src.procesador import (
+    procesar_dataflow,
+    generar_excel_seguro,
+)
 
-# ----------------------------------------
+
+# ==========================================
 # CONFIGURACION GENERAL
-# ----------------------------------------
+# ==========================================
 
 st.set_page_config(
-    page_title="DataFlow | Analítica de Datos",
+    page_title="DataFlow | Analitica de Datos",
     page_icon="📊",
-    layout="wide"
+    layout="wide",
 )
 
 st.title("📊 DataFlow")
@@ -30,56 +32,87 @@ st.write(
 
 st.divider()
 
-
-# ----------------------------------------
-# PRESENTACION DE FUNCIONALIDADES
-# ----------------------------------------
-
 st.header("¿Qué puedes hacer con DataFlow?")
 
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    st.info("📁 Consolidar archivos Excel de diferentes sucursales.")
+    st.info(
+        "📁 Consolidar archivos Excel "
+        "de diferentes sucursales."
+    )
 
 with col2:
-    st.info("✅ Detectar registros inválidos y duplicados.")
+    st.info(
+        "✅ Detectar registros invalidos "
+        "e identificadores duplicados."
+    )
 
 with col3:
-    st.info("📈 Generar reportes de calidad y descargar resultados.")
+    st.info(
+        "📈 Generar reportes de calidad "
+        "y descargar resultados."
+    )
 
 st.divider()
 
+st.caption(
+    "DataFlow | Soluciones de analitica "
+    "y automatizacion de datos"
+)
 
-# ----------------------------------------
-# CARGA DE ARCHIVOS
-# ----------------------------------------
+
+# ==========================================
+# CARGA DE ARCHIVOS EXCEL
+# ==========================================
 
 st.header("📁 Cargar archivos de ventas")
+
+st.write(
+    "Selecciona los archivos Excel de las sucursales "
+    "que deseas consolidar y analizar."
+)
 
 archivos_cargados = st.file_uploader(
     "Seleccionar archivos Excel",
     type=["xlsx"],
-    accept_multiple_files=True
+    accept_multiple_files=True,
 )
+
+
+# ==========================================
+# IDENTIFICACION DE SUCURSALES
+# ==========================================
 
 archivos_por_sucursal = {}
 nombres_ingresados = []
 
 if archivos_cargados:
+
     st.success(
         f"Se cargaron {len(archivos_cargados)} archivo(s)."
     )
 
     st.subheader("Identificar sucursales")
 
+    st.write(
+        "Indica a que sucursal pertenece cada archivo."
+    )
+
     for numero, archivo in enumerate(archivos_cargados):
+
         nombre_sugerido = archivo.name.rsplit(".", 1)[0]
+
+        # Asociar el campo al contenido del archivo
+        # para evitar reutilizar nombres anteriores.
+        identificador = hashlib.sha256(
+            archivo.getvalue()
+        ).hexdigest()[:12]
 
         sucursal = st.text_input(
             f"Sucursal del archivo: {archivo.name}",
             value=nombre_sugerido,
-            key=f"sucursal_{numero}"
+            key=f"sucursal_{numero}_{identificador}",
         ).strip()
 
         nombres_ingresados.append(sucursal)
@@ -88,35 +121,46 @@ if archivos_cargados:
             archivos_por_sucursal[sucursal] = archivo
 
     if any(not nombre for nombre in nombres_ingresados):
-        st.warning("Todos los archivos deben tener una sucursal.")
 
-    elif len(set(nombres_ingresados)) != len(nombres_ingresados):
+        st.warning(
+            "Todos los archivos deben tener una sucursal."
+        )
+
+    elif len(set(nombres_ingresados)) != len(
+        nombres_ingresados
+    ):
+
         st.error(
             "Hay nombres de sucursales repetidos. "
             "Asigna un nombre diferente a cada archivo."
         )
 
     else:
-        st.success("Todas las sucursales fueron identificadas.")
+
+        st.success(
+            "Todas las sucursales fueron identificadas."
+        )
 
 else:
-    st.info("Todavía no has seleccionado archivos Excel.")
+
+    st.info(
+        "Todavia no has seleccionado archivos Excel."
+    )
 
 
-
-# ----------------------------------------
-# PROCESAMIENTO
-# ----------------------------------------
+# ==========================================
+# PROCESAMIENTO DE ARCHIVOS
+# ==========================================
 
 st.divider()
+
 st.header("⚙️ Procesamiento de datos")
 
 rechazar_duplicados = st.checkbox(
     "Rechazar registros con identificadores duplicados",
-    value=False
+    value=False,
 )
 
-# Validar la configuracion de sucursales
 configuracion_valida = (
     bool(archivos_cargados)
     and len(archivos_por_sucursal) == len(archivos_cargados)
@@ -124,177 +168,226 @@ configuracion_valida = (
     and all(nombres_ingresados)
 )
 
-# Identificar cambios en archivos y configuracion
 identificadores_archivos = []
 
 for archivo in archivos_cargados or []:
+
+    identificador = hashlib.sha256(
+        archivo.getvalue()
+    ).hexdigest()
+
     identificadores_archivos.append(
-        (
-            archivo.name,
-            hashlib.sha256(archivo.getvalue()).hexdigest()
-        )
+        (archivo.name, identificador)
     )
 
 configuracion_actual = (
     tuple(identificadores_archivos),
     tuple(nombres_ingresados),
-    rechazar_duplicados
+    rechazar_duplicados,
 )
 
-# Evitar mostrar resultados de una configuracion anterior
-if st.session_state.get("configuracion_anterior") != configuracion_actual:
-    st.session_state.pop("resultados_dataflow", None)
-    st.session_state["configuracion_anterior"] = configuracion_actual
+# Invalidar resultados cuando cambia cualquier
+# archivo, sucursal u opcion de procesamiento.
 
-# Ejecutar el procesamiento
+if (
+    st.session_state.get("configuracion_anterior")
+    != configuracion_actual
+):
+
+    st.session_state.pop(
+        "resultados_dataflow",
+        None,
+    )
+
+    st.session_state[
+        "configuracion_anterior"
+    ] = configuracion_actual
+
+
 procesar = st.button(
     "🚀 Procesar archivos",
     type="primary",
-    disabled=not configuracion_valida
+    disabled=not configuracion_valida,
 )
 
 if procesar:
-    st.session_state.pop("resultados_dataflow", None)
+
+    st.session_state.pop(
+        "resultados_dataflow",
+        None,
+    )
 
     try:
-        with st.spinner("Procesando archivos Excel..."):
+
+        with st.spinner(
+            "Procesando archivos Excel..."
+        ):
+
             resultados = procesar_dataflow(
                 archivos_por_sucursal,
-                rechazar_duplicados=rechazar_duplicados
+                rechazar_duplicados=rechazar_duplicados,
             )
 
-        st.session_state["resultados_dataflow"] = resultados
+        st.session_state[
+            "resultados_dataflow"
+        ] = resultados
 
         st.success(
             "Los archivos fueron procesados correctamente."
         )
 
     except ValueError as error:
-        st.error(f"No se pudo procesar: {error}")
+
+        st.error(
+            f"No se pudo procesar: {error}"
+        )
 
     except Exception:
+
         st.error(
-            "Ocurrio un error inesperado durante el procesamiento."
+            "Ocurrio un error inesperado "
+            "durante el procesamiento."
         )
 
 
-# ----------------------------------------
-# RESULTADOS Y DESCARGAS
-# ----------------------------------------
+# ==========================================
+# RESUMEN DE RESULTADOS
+# ==========================================
 
 if "resultados_dataflow" in st.session_state:
 
-    resultados = st.session_state["resultados_dataflow"]
+    resultados = st.session_state[
+        "resultados_dataflow"
+    ]
+
     datos = resultados["datos_validados"]
 
-    # Resumen del procesamiento
+    st.divider()
+
     st.subheader("📊 Resumen del procesamiento")
 
     col1, col2, col3 = st.columns(3)
 
     with col1:
+
         st.metric(
             "Registros analizados",
-            len(datos)
+            len(datos),
         )
 
     with col2:
+
         st.metric(
             "Registros validos",
-            int((datos["estado"] == "VALIDO").sum())
+            int(
+                (datos["estado"] == "VALIDO").sum()
+            ),
         )
 
     with col3:
+
         st.metric(
             "Registros rechazados",
-            int((datos["estado"] == "RECHAZADO").sum())
+            int(
+                (datos["estado"] == "RECHAZADO").sum()
+            ),
         )
 
-    # Vista previa
-    st.subheader("Vista previa de resultados")
+
+    # ======================================
+    # VISUALIZACION DE RESULTADOS
+    # ======================================
+
+    st.subheader("📋 Datos procesados")
 
     st.dataframe(
         datos,
-        use_container_width=True
+        use_container_width=True,
+        hide_index=True,
     )
 
-    # ----------------------------------------
-    # DESCARGAR RESULTADOS EN EXCEL
-    # ----------------------------------------
+    st.subheader("🔎 Identificadores duplicados")
+
+    duplicados = resultados["duplicados"]
+
+    if duplicados.empty:
+
+        st.info(
+            "No se detectaron identificadores duplicados."
+        )
+
+    else:
+
+        st.dataframe(
+            duplicados,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    st.subheader("📈 Reporte de calidad")
+
+    st.dataframe(
+        resultados["reporte_calidad"],
+        use_container_width=True,
+        hide_index=True,
+    )
+
+
+    # ======================================
+    # DESCARGAS EXCEL SEGURAS
+    # ======================================
 
     st.divider()
+
     st.subheader("📥 Descargar resultados")
 
     st.write(
-        "Descarga los resultados del procesamiento "
-        "en archivos Excel independientes."
+        "Descarga los archivos generados por DataFlow."
     )
 
-    def convertir_a_excel(tabla):
-        memoria = BytesIO()
+    col1, col2, col3 = st.columns(3)
 
-        with pd.ExcelWriter(
-            memoria,
-            engine="openpyxl"
-        ) as writer:
-            tabla.to_excel(
-                writer,
-                index=False,
-                sheet_name="Resultados"
-            )
+    with col1:
 
-        return memoria.getvalue()
-
-    archivos_salida = {
-        "datos_validados": (
-            "ventas_validadas.xlsx",
-            "📄 Descargar ventas validadas"
-        ),
-        "duplicados": (
-            "duplicados.xlsx",
-            "🔎 Descargar duplicados"
-        ),
-        "reporte_calidad": (
-            "reporte_calidad.xlsx",
-            "📊 Descargar reporte de calidad"
+        st.download_button(
+            label="📥 Ventas validadas",
+            data=generar_excel_seguro(
+                resultados["datos_validados"]
+            ),
+            file_name="ventas_validadas.xlsx",
+            mime=(
+                "application/vnd.openxmlformats-"
+                "officedocument.spreadsheetml.sheet"
+            ),
+            key="descargar_ventas",
         )
-    }
 
-    col_descarga1, col_descarga2, col_descarga3 = st.columns(3)
+    with col2:
 
-    columnas_descarga = [
-        col_descarga1,
-        col_descarga2,
-        col_descarga3
-    ]
+        st.download_button(
+            label="📥 Duplicados",
+            data=generar_excel_seguro(
+                resultados["duplicados"]
+            ),
+            file_name="duplicados.xlsx",
+            mime=(
+                "application/vnd.openxmlformats-"
+                "officedocument.spreadsheetml.sheet"
+            ),
+            key="descargar_duplicados",
+        )
 
-    for columna, (clave, informacion) in zip(
-        columnas_descarga,
-        archivos_salida.items()
-    ):
+    with col3:
 
-        nombre_archivo, etiqueta = informacion
-
-        with columna:
-            st.download_button(
-                label=etiqueta,
-                data=convertir_a_excel(resultados[clave]),
-                file_name=nombre_archivo,
-                mime=(
-                    "application/vnd.openxmlformats-officedocument."
-                    "spreadsheetml.sheet"
-                ),
-                key=f"descarga_{clave}",
-                use_container_width=True
-            )
-
-
-# ----------------------------------------
-# PIE DE PAGINA
-# ----------------------------------------
-
-st.divider()
-
-st.caption(
-    "DataFlow | Soluciones de analítica y automatización de datos"
-)
+        st.download_button(
+            label="📥 Reporte de calidad",
+            data=generar_excel_seguro(
+                resultados["reporte_calidad"]
+            ),
+            file_name="reporte_calidad.xlsx",
+            mime=(
+                "application/vnd.openxmlformats-"
+                "officedocument.spreadsheetml.sheet"
+            ),
+            key="descargar_reporte",
+        )
