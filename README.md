@@ -72,6 +72,22 @@ Se han implementado y probado controles específicos para validar archivos, gest
 Para utilizar DataFlow con información empresarial confidencial se requiere una evaluación adicional de privacidad, infraestructura, controles de acceso y tratamiento de datos.
 
 
+## 📊 Presentación profesional del proyecto
+
+DataFlow es un proyecto demostrativo de automatización
+y calidad de datos desarrollado con Python, Pandas
+y Streamlit.
+
+La presentación incluye el problema empresarial,
+la solución técnica, los resultados verificados
+y las competencias profesionales demostradas.
+
+📄 [Ver presentación de DataFlow (PDF)](portafolio/presentacion_dataflow.pdf)
+
+**Nota:** El caso empresarial utiliza datos ficticios.
+
+
+
 ## 📸 Evidencias del proyecto
 
 Las siguientes capturas corresponden a una simulación
